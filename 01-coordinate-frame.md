@@ -18,7 +18,7 @@ grounding:
   accessors:
     now:          fn_GetClientLocalTime(@ClientID)
     current_week: fn_GetClientCurrentWeekId(@ClientID)
-    date_to_week: fn_ResolveWeekIdFromDate(@TargetDate, @ClientID)
+    date_to_week: fn_ResolveWeekIdFromDate(@ClientId, @TargetDate)   # param order verified live 2026-08-22
     to_utc:       fn_ConvertClientToUTC     # write edge
     from_utc:     fn_ConvertUTCToClient     # read edge
   scope_predicate: fn_*ClientPredicate(@ClientID)   # per-entity family

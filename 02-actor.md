@@ -72,8 +72,11 @@ every interrogation and the portal's first gate, before the ClientID scope from
 WHO. Authentication and identity are separate. `Users` is only a credential; it is
 neither manager nor driver. `tblUserMapping` resolves that login to a live actor by
 Type: M to a manager (tblManagers), L to a driver (tblLMDP). Both actors are real
-and shipping. The driver-facing app is already built on the LMDP side; the portal
-v1 asker is the manager.
+and shipping. The driver-facing app is already built on the LMDP side, but the
+driver is NOT an asker. RULED 2026-08-22: the manager is the ONLY interrogator and
+the driver gets no portal access. This is not a v1 scoping call to revisit later; it
+is the access model. An L-type login resolves to an actor for the driver app, never
+to a portal session.
 
 SCOPE. One manager, one client. Today the relationship is strictly 1:1 (verified).
 The many-to-many scaffolding (tblManagerClient, Roles.IsCrossCompany, CompanyId)

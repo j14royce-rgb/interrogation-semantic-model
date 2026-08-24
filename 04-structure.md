@@ -1,108 +1,139 @@
 ---
 concept: structure
-title: Structure (the Work-Definition Shell)
+title: Structure (the Demand Side)
 kind: structure
 branch: 2-structure
-aka: [operation, op, shift type, shift, wave time, wave, dispatch time, location, site,
-      hub, spoke, station, arrival, loadout, what work exists, the schedule shell]
+aka: [mission type, mission, seat, crew, run, shift, shift type, operation,
+      dispatch, anchor, location, site, hub, wave, wave time, arrival,
+      "what work exists", "how many people", "who is needed", the schedule shell]
 
 scope_note: |
-  ONE concept, four interdependent parts. Operation, Shift Type, Wave Time, and Location
-  define what work EXISTS, before anyone is assigned. None stands alone, so they are one
-  shell, not four entries. Ranked by consequence: Operation (the shell/hub) > Shift Type
-  (load-bearing, the rulebook seam) > Wave Time (thin, one property) > Location (thinnest,
-  1:1, no interesting properties). NOT the same as Team: the driver side shares this exact
-  hub/details/week-versioned pattern but is a distinct concept, see [[labor]]. Structural
-  similarity is not conceptual identity.
+  THE DEMAND SIDE. What work exists and who is REQUIRED to be in it, before
+  anyone is assigned. Four levels — mission type -> seat -> mission ->
+  mission seat — plus place, which is half of what a seat's ReportToKind
+  means. NOT who fills it (that is assignment). NOT what a badge means
+  (that is [[eligibility]]). NOT what an asset is (that is [[assets]]).
+  "Operation" and "shift type" are in `aka` because managers still say them;
+  neither exists.
 
 disclosure:
-  citable:  [OperationName, CustomerCode, ShiftType Description + Duration + CapabilityRequired,
-             required category + Quantity, WaveTime StartTime, LocationNickName + Address + type]
-  internal: [routing IDs, ColorFamilyID, IconID]
-  gated:    [HourlyRate is pay-sensitive -> permission-gated, not open-citable]
-
-shared_pattern: |
-  All four parts are a thin hub (ClientID, StartWeekID, Archived) + a details table,
-  week-versioned and archivable through the ledger. Versioning semantics live in
-  [[coordinate-frame]]; not re-explained per part.
+  citable:  [mission type name, dispatch + anchor location Name/Address, seat Ordinal,
+             role badge Label, Hours, StartOffsetMinutes, Quantity, ReportToKind,
+             required AssetCategory + Quantity, DeliveryDate, seat counts]
+  internal: [ColorFamilyID, MissionTypeDetailID / SeatDetailID routing, ST 33/34 lane mechanics]
+  gated:    [HourlyRate is pay-sensitive — permission-gated, never open-citable]
 
 grounding:
-  operation:   # the shell / hub
-    tblOperation:        { keys: [OperationId], carries: [ClientId, StartWeekID, Archived] }
-    tblOperationDetails: { carries: [OperationName, ArrivalLocation, LoadoutLocation, LeadTime, ParentOperationID, CustomerCode], note: ParentOperationID = hub/spoke hierarchy }
-  shift_type:  # load-bearing; the rulebook seam
-    tblShiftType:          { keys: [ShiftID], carries: [ClientID, StartWeekID, Archived] }
-    tblShiftTypeDetails:   { carries: [Description, Duration, HourlyRate, CapabilityRequired] }
-    tblShiftTypeRequirements: { carries: [ShiftTypeID, CategoryID, Quantity, IsRequired], role: demands equipment categories -> [[rulebook]] }
-  wave_time:   # thin: one real property
-    tblWaveTimes:          { keys: [WaveTimeID], carries: [ClientID, StartWeekID, Archived] }
+  definition:
+    tblMissionType:        { keys: [MissionTypeID], carries: [ClientID, StartWeekID, Archived], role: thin hub }
+    tblMissionTypeDetails: { carries: [DispatchLocationID, TransportBadgeID, IsAnchored, ServiceBadgeID, ColorFamilyID], role: the identity four-tuple + the two badges it attaches }
+    tblSeat:               { keys: [SeatID], carries: [MissionTypeID, Ordinal, StartWeekID, Archived] }
+    tblSeatDetails:        { carries: [RoleID, HourlyRate, Hours, StartOffsetMinutes, Quantity, ReportToKind], versioned: ST 33 detail / ST 34 live-flag }
+    tblSeatRequirements:   { carries: [SeatID, AssetCategoryID, Quantity], role: THE MISSION KIT. No week — config, not ledgered. }
+  instance:
+    tblMission:            { keys: [MissionID], carries: [MissionTypeID, DeliveryDate, OverstaffingType, AnchorLocationID] }
+    tblMissionSeat:        { keys: [MissionSeatID], carries: [MissionID, SeatID, Ordinal, SeatType, IsAdded, IsReduced], role: THE ATOM. One row per person required. }
+  place:
+    tblLocation:           { keys: [LocationID], carries: [ClientID, StartWeekID, Archived] }
+    tblLocationDetails:    { carries: [Name, Address, City, State, Zip, Latitude, Longitude, LocationType, ParentLocationID], note: LocationType 1 dispatch · 2 off-site · 3 anchor; ParentLocationID tethers an anchor to its dispatch root }
+  wave:
+    tblWaveTime:           { keys: [WaveTimeID], carries: [ClientID, StartWeekID, Archived] }
     tblWaveTimeDetails:    { carries: [StartTime] }
-    tblWaveTimeAllocation: { carries: [OperationWaveTimeId, DeliveryDate, Count], role: per-date planned counts -> [[preparation]] }
-  location:    # thinnest: 1:1, no interesting properties
-    tblLocations:       { keys: [LocationID], carries: [ClientID, StartWeekID, Archived] }
-    tblLocationDetails: { carries: [LocationNickName, LocationAddress, LocationType, Latitude, Longitude] }
-  bridges:
-    tblOperationShiftType: { OperationId <-> ShiftType }
-    tblOperationWaveTime:  { OperationId <-> WaveTimeId }
+    tblMissionTypeWaveTime:{ role: a bridge only — see WAVE TIME IS NOT LOAD-BEARING HERE }
   accessors:
-    build:      Dash_Build_Operations_Hydrated
-    display:    fn_ResolveOperationDisplay / fn_ResolveShiftTypeDisplay
-    ledger:     fn_OperationLedgerChanges / fn_ShiftTypeLedgerChanges / fn_WaveTimeLedgerChanges / fn_LocationLedgerChanges
+    name:      fn_ResolveMissionTypeName(@ClientID,@WeekID)    # vehicle | service [| Anchored]
+    display:   fn_ResolveMissionTypeDisplay
+    seats:     fn_MissionTypeSeats(@MissionTypeID,@WeekID)     # + drives / delivers / isOperator
+    holes:     fn_ResolveMissionSeats
+    place:     fn_ResolveLocationDisplay
+  write_doors:
+    Op_MissionType_Submit:      the four-tuple; refuses a duplicate on it, never on the name
+    Op_Seat_Submit:             the crew; refuses a non-driving role at ordinal 1
+    Op_SeatRequirement_Submit:  the mission kit, one category one seat one call
+    Op_MissionCard_Submit:      instantiation — where the multiplication happens
+    Op_Mission_Breathe:         add or reduce a seat on a live mission
+    Op_MissionTypeWaveTime_Submit
 
-composition: |
-  An Operation happens at Locations (arrival + loadout), offers Shift Types
-  (tblOperationShiftType), and runs on Wave Times (tblOperationWaveTime). ParentOperationID
-  gives the hub-and-spoke hierarchy. The other three parts are what the shell binds.
+identity: |
+  A mission type IS the four-tuple (dispatch location, transport badge,
+  service badge, anchored). Op_MissionType_Submit refuses a duplicate on the
+  tuple, never on the name — the name is DERIVED and never stored.
 
-realized_in:   # structure DEFINES the work; these REALIZE it (definition -> instance arc)
-  demand -> filled_work: missions + assignments realize the defined work -> [[preparation]]
-  wave_allocation -> planned_counts: tblWaveTimeAllocation.Count feeds demand -> [[preparation]]
-  shift_requirement -> equipment: CategoryID + Quantity resolve as categories -> [[rulebook]]
+the_multiplication: |
+  A seat of quantity N mints N tblMissionSeat rows at instantiation. The
+  multiplication happens ONCE, at the mission card, and never again. A
+  requirement applies once per mission-seat ROW: 25 missions is 25 scanners
+  because there are 25 supervisor rows.
 
 relationships:
-  - Operation HAPPENS-AT Location (arrival + loadout) VIA tblOperationDetails
-  - Operation OFFERS ShiftType VIA tblOperationShiftType
-  - Operation RUNS-ON WaveTime VIA tblOperationWaveTime
-  - Operation PARENT-OF Operation VIA ParentOperationID (hub/spoke)
-  - ShiftType REQUIRES capability + equipment categories VIA CapabilityRequired + tblShiftTypeRequirements -> [[rulebook]]
-  - WaveTime CARRIES planned per-date counts VIA tblWaveTimeAllocation -> [[preparation]]
-  - Structure IS-REALIZED-BY missions + assignments -> [[preparation]]
-  - All parts VERSIONED-IN [[coordinate-frame]] time (StartWeekID, Archived)
-  - Structurally like, but conceptually NOT, Team -> [[labor]]
+  - Mission type BELONGS-TO a client and is VERSIONED-IN [[coordinate-frame]] time
+  - Mission type ATTACHES a transport badge and a service badge -> [[eligibility]]
+  - Seat BELONGS-TO a mission type and ATTACHES a role badge -> [[eligibility]]
+  - Seat DEMANDS asset categories VIA tblSeatRequirements -> [[assets]]
+  - Mission INSTANTIATES a mission type on a DATE
+  - Mission seat IS-MINTED-FROM a seat, one row per person required
+  - Seat REPORTS-TO a place kind (1 dispatch · 2 off-site · 3 anchor)
+  - An ANCHORED mission type takes its place from tblMission.AnchorLocationID, not the dispatch
+  - Structure DECLARES; [[eligibility]] and [[assets]] SATISFY; assignment FILLS
 
-fill_reality:   # client 7293, verified 2026-07-14
-  operations: 9   # hub-and-spoke
-  shift_types: 4
-  wave_times: 21
-  locations: 20
+fill_reality:   # client 7293, verified 2026-08-23
+  mission_types: 4        # all one dispatch; 8800048 and 8800051 differ ONLY by transport badge
+  seats: 6
+  seat_requirements: 0    # empty by ruling — the 48 legacy rows named shift types that exist nowhere
+  missions: 613
+  mission_seats: 1725     # 1 to 31 per mission
+  locations: 4            # 1 dispatch (Manhattan Hub) · 1 off-site (Gowanus Lot) · 2 anchors (Upper East Side, Harlem)
+  wave_times: 4           # 5 mission-type bridges
+  retired_2026-08-23: [tblWaveTimeAllocation, tblOperationShiftType]   # zero readers, dropped
 
-cite: the tblOperation / tblShiftType / tblWaveTimes / tblLocations rows (+ their details) behind a work-definition claim
+cite: the tblMissionType / tblSeat rows behind a declaration, and the tblMission / tblMissionSeat rows behind a dated one
 intents: []
 ---
 
 ## Meaning
 
-Structure is the client's definition of what work EXISTS, before anyone is assigned to it.
-It is one shell with four interdependent parts, none of which stands alone.
+**THE DEMAND SIDE.** Structure says what work exists and how many people it
+needs. It never says who. A mission with an empty seat is fully described here;
+filling it is somebody else's concept.
 
-THE PARTS, BY WEIGHT. Operation is the shell: the top-level unit of work, with a hub-and-spoke
-hierarchy (ParentOperationID). Shift Type is the load-bearing part, and the seam to the
-rulebook. Wave Time is thin, essentially one property (a start time). Location is thinnest of
-all: 1:1, ledger-versioned like the rest but carrying no interesting properties beyond an
-address. That ranking is deliberate, so the model knows where the weight sits.
+**FOUR LEVELS, AND THE SEAM IS IN THE MIDDLE.** Mission type and seat are
+**definition** — week-versioned, edited in the Rule Book, true until changed.
+Mission and mission seat are **instance** — a date, and one row per person
+required. The seam between them is instantiation.
 
-COMPOSITION. An operation happens at locations (an arrival and a loadout), offers shift types,
-and runs on wave times. The other three are what the shell binds together.
+**IDENTITY IS A FOUR-TUPLE, NOT A NAME.** A mission type is *(dispatch,
+transport badge, service badge, anchored)*. The name is derived and never
+stored — `vehicle | service [| Anchored]` — so two types can read alike and
+still be distinct. On the demo client, two of the four differ only by transport
+badge. Anything that identifies a mission type by its name is identifying it by
+something the database does not keep.
 
-THE RULEBOOK SEAM. Shift Type is where the demand side meets [[rulebook]]. A shift type carries
-CapabilityRequired and, through tblShiftTypeRequirements, demands specific equipment categories
-in specific quantities. This is where the need for equipment is born: structure says "this shift
-needs a box truck and a scanner," and the rulebook says what those are.
+**THE SEAT MAKES TWO DEMANDS, AND THEY ARE PARALLEL.** It attaches a **role
+badge**, satisfied by documents in [[eligibility]]; and it demands **asset
+categories**, satisfied by instances in [[assets]]. **Structure owns the
+declaration in both cases and the satisfaction in neither.** The seat is the
+subject; the badge and the category are both objects.
 
-REALIZED IN PREPARATION. Structure is only the definition. The actual filled work, missions and
-assignments, realizes it in [[preparation]]; wave allocations carry the planned per-date counts
-that become demand. "What work exists" is here; "what work got filled" is there.
+**THE MULTIPLICATION HAPPENS ONCE.** A seat of quantity N mints N mission-seat
+rows at instantiation, and nothing multiplies again. A requirement of one scanner
+on a supervisor seat is one scanner *per supervisor row*. The seat's quantity
+must never meet a requirement's quantity — putting the two numbers side by side
+invites a multiplication that has already happened.
 
-DISCLOSURE. Structure is the client's own operation definition, so it is broadly citable: the
-operations they run, their shifts, times, and sites. The one guarded field is HourlyRate, which
-is pay-sensitive and permission-gated rather than open.
+**PLACE IS NOT COSMETIC.** A seat reports to a *kind* of place — dispatch,
+off-site, or anchor — and an **anchored** mission type takes its actual place
+from the mission's own `AnchorLocationID` rather than the type's dispatch. That
+is why the grid can roll up every anchor while a modal scopes to the one
+clicked, and why a cell key carries a location at all. An anchor is tethered to
+its dispatch root by `ParentLocationID`; it is a place under a place, not a
+place beside one.
+
+**WAVE TIME IS NOT LOAD-BEARING HERE.** A wave time is a start time, bridged to
+mission types, and it makes no difference to demand: nothing about who is
+required changes with the wave. It is a ledgered component and belongs with the
+components, not in this concept. Its allocation table was retired 2026-08-23
+with no readers.
+
+**WHAT STRUCTURE DOES NOT KNOW.** Whether anyone can fill a seat
+([[eligibility]]), whether the equipment exists ([[assets]]), who is in it
+(assignment), or whether they want to be ([[preferences]]).
