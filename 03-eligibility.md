@@ -1,163 +1,157 @@
 ---
 concept: eligibility
-title: Eligibility (Badges, Capabilities, Documents)
+title: Eligibility (Badges, Requirements, Documents)
 kind: rulebook
 branch: 1-eligibility          # replaces 03-rulebook; equipment moved to [[assets]]
-aka: [eligibility, qualified, qualifications, badge, badges, capability, capabilities,
-      role, roles, transport, endorsement, endorsements, service, delivery type,
-      vehicle type, licence, license, certification, document, credential,
-      expiry, expired, lapsed, "can they drive", "is he qualified",
-      "who can fill", "why can't they"]
+aka: [eligibility, qualified, qualifications, badge, badges, requirement, requirements,
+      role, roles, transport, service, delivery type, vehicle type, licence, license,
+      certification, document, credential, expiry, expired, "can they drive",
+      "is he qualified", "who can fill", "why can't they"]
 
 scope_note: |
-  PEOPLE. May a PERSON be put in a seat. Every capability requirement in the
-  database resolves to a DRIVER-owned document — all of them, all three tiers.
-  Vehicle-owned documents (3 types, 210 held) are the asset's roadworthiness
-  and belong to [[assets]]; they never enter this chain. The two share the word
-  "document" and nothing else. WHERE badges attach is [[structure]].
+  PEOPLE. May a PERSON be put in a seat. Every requirement in this chain
+  resolves to a DRIVER-owned document. Vehicle-owned documents (3 types, 202
+  held) are the asset's roadworthiness and belong to [[assets]]; they never
+  enter this chain. The two share the word "document" and nothing else. WHERE
+  badges attach to the work is [[structure]]; what the driver HOLDS is
+  [[documents]] and [[labor]]. This concept is the rule that joins them.
 
 disclosure:
-  citable:  [badge Label, capability Label, tier word, DocumentType Label,
-             Expires, NotifyDaysBefore, ExpiryDate, IsExpired, validity window,
-             slot satisfaction, isEligible, drives, delivers]
-  internal: [CapabilityDocumentID, slotKey composition, BadgeAliasID,
-             ledger StatusType 712, the gate's internal tiering]
+  citable:  [badge Label, the three category words, DocumentType Label, ExpiryDate,
+             held / not held, eligible / not eligible, drives, delivers]
+  internal: [SlotNo (the requirement number — the FE renumbers 1..N for display),
+             slotKey composition, BadgeAliasID, ledger StatusType 712,
+             the gate's internal tiering, tblCapabilityGroup.Label (a retired word)]
 
 grounding:
   definition:
-    tblCapabilityGroup:    { keys: [CapabilityGroupID], carries: [Code, Label, BadgeLabel], role: THE ONLY PLACE A TIER IS NAMED — and it names it TWICE, see THE TIER HAS TWO WORDS }
-    tblBadge:              { keys: [BadgeID], carries: [CapabilityGroupID, Label, IconID], role: every badge, all tiers, one table }
-    tblBadgeAlias:         { keys: [BadgeAliasID], role: the ONLY client-editable surface in this concept }
-    tblCapability:         { keys: [CapabilityID], carries: [CapabilityGroupID, Label, AssetCategoryID] }
-    tblBadgeCapability:    { role: badge -> capability. What a badge DEMANDS. No tier logic. }
-    tblCapabilityDocument: { keys: [CapabilityDocumentID], carries: [CapabilityID, SlotNo, DocumentTypeID, ClientID, Archived], role: capability -> SLOT -> document type }
+    tblCapabilityGroup:    { keys: [CapabilityGroupID], carries: [Code, BadgeLabel], role: the THREE badge categories — BadgeLabel is the word (Transport · Role · Service). The table name and its Label column are retired vocabulary and never cited. }
+    tblBadge:              { keys: [BadgeID], carries: [CapabilityGroupID, Label, IconID, Drives, Delivers, HasRoute, Archived], role: every badge, all three categories, one table. Drives/Delivers are REACH and sit only on Role badges. }
+    tblBadgeAlias:         { keys: [BadgeAliasID], role: the ONLY client-editable surface on a badge — label and glyph }
+    tblBadgeDocument:      { keys: [BadgeID, ClientID, SlotNo], carries: [DocumentTypeID, Archived], role: badge -> REQUIREMENT NUMBER -> document type. The whole rule, one table. ClientID NULL = system law; a client id = that client's addition. }
+    tblBadgeAssetCategory: { keys: [BadgeID, AssetCategoryID], role: which vehicle categories a Transport badge PERMITS — one badge, one or more categories } -> [[assets]]
   supply:
-    tblDocument:           { keys: [DocumentID], carries: [OwnerType, OwnerID, DocumentTypeID, ExpiryDate, IsCancelled], role: what a driver HOLDS }
-    tblDocumentType:       { keys: [DocumentTypeID], carries: [Label, OwnerType, Expires, NotifyDaysBefore, ValidityMinWeeks, ValidityMaxWeeks], role: the TYPE fixes the owner kind AND how it ends } -> [[documents]]
-    tblClientDocumentType: { carries: [NotifyDaysBefore, ValidityWeeks], role: the client's POLICY on a shared type }
+    tblDocument:            { keys: [DocumentID], carries: [OwnerType, OwnerID, DocumentTypeID, ExpiryDate, IsCancelled, Archived], role: what a driver HOLDS } -> [[documents]]
+    tblDocumentType:        { keys: [DocumentTypeID], carries: [Label, FacingID, ProofID, CapabilityGroupID, Expires, ClientID, Archived], role: the TYPE fixes who it faces, which category it serves, how it is proven, and whether it expires } -> [[documents]]
+    tblClientBadgeDocument: { carries: [IsComplianceChecked, NotifyDaysBefore], role: the client's POLICY on a type — checked at handover or not, and the notice lead }
   accessors:
-    badge_read:     fn_ResolveBadgeDisplay(@ClientID)   # ONE read, all tiers; emits groupLabel = the BADGE word
-    reach:          fn_BadgeReach()                     # does this badge hold Drive(48) / Deliver(47)
-    slots:          fn_CapabilityDocuments(@ClientID,@WeekID)
-    supply:         fn_LMDPDocumentSupply(@ClientID,@AsOf)
-    satisfied:      fn_LMDPCapabilitySatisfied
-    demand_at_seat: fn_SeatDemandedSlots(@ClientID,@WeekID)
-    match:          fn_LMDPSeatEligible(@ClientID,@WeekID,@AsOf)
-    the_gate:       fn_ResolveSeatGate                  # the verdict travels as MEMBERSHIP
+    badge_read:     fn_ResolveBadgeDisplay(@ClientID)         # ONE read, all categories, alias applied; emits the category word
+    reach:          fn_BadgeReach()                            # which Role badges drive / deliver
+    requirements:   fn_BadgeDocuments(@ClientID,@WeekID)       # badge -> SlotNo -> document type, with scope; THE keystone, every gate reads it
+    supply:         fn_LMDPDocumentSupply(@ClientID,@AsOf)     # what each driver holds, valid on the day
+    satisfied:      fn_LMDPCapabilitySatisfied(@ClientID,@WeekID,@AsOf)   # which badges each driver's paperwork satisfies (name predates the collapse; body reads fn_BadgeDocuments)
+    demand_at_seat: fn_SeatDemandedSlots(@ClientID,@WeekID)    # the requirements a seat composes, via fn_MissionTypeSeats + fn_RoleDemandedSlots
+    match:          fn_LMDPSeatEligible(@ClientID,@WeekID,@AsOf)   # driver x seat pairs with no requirement unmet
+    the_gate:       fn_ResolveSeatGate(@ClientId,@WeekId,@FirstDayOfWeek,@OverrideAvailability,@OverrideBadges)   # per driver, per seat, per day; the verdict travels as MEMBERSHIP
+    screen:         Dash_Badges_Hydrated                       # Rule Book > Qualification: badges | documents, the requirement numbers
   write_doors:
-    Op_Badge_Submit:                alias only, all three tiers. No door creates a badge.
-    Op_DocumentType_Submit:         subject, proof, expires AND the validity range are BORN-FIXED.
-    Op_ClientDocumentPolicy_Submit: the client's notice lead and lapse window.
+    Op_Badge_Submit:                alias only, all three categories. No door creates a badge.
+    Op_DocumentType_Submit:         a document type's identity AND its badge links (@BadgeIDs), create or edit, ledgered — one gesture, one batch. Subject, proof and expiry are BORN-FIXED; a process change is archive + author new.
+    Op_ClientDocumentPolicy_Submit: the client's compliance-checked flag and notice lead, in place.
+    Op_SeatRequirement_Submit:      the seat's ASSET demands (kit), not documents -> [[structure]]
 
-composition:   # WHICH attachment reaches a seat. Reads [[structure]], decided here.
-  ROLE:      always              -> the SEAT's role badge
-  TRANSPORT: if the role DRIVES  -> the MISSION TYPE's transport badge
-  SERVICE:   if the role DELIVERS-> the MISSION TYPE's service badge
+composition:   # WHICH badges reach the person in a seat. Reads [[structure]], decided here.
+  ROLE:      always                 -> the SEAT's Role badge
+  TRANSPORT: if the role DRIVES     -> the MISSION TYPE's Transport badge
+  SERVICE:   if the role DELIVERS   -> the MISSION TYPE's Service badge
 
 relationships:
-  - Badge BELONGS-TO a tier VIA CapabilityGroupID (the tier is DATA on the row, never a separate table)
-  - Badge DEMANDS capabilities VIA tblBadgeCapability
-  - Capability IS-PROVEN-BY a SLOT of document types VIA tblCapabilityDocument
-  - A SLOT is met by ANY ONE of its documents; a seat is fillable when NO slot is missing
+  - Badge BELONGS-TO one of three categories VIA CapabilityGroupID (the category is DATA on the row, never a separate table)
+  - Badge DEMANDS document types in NUMBERED REQUIREMENTS VIA tblBadgeDocument
+  - Documents sharing a number are ALTERNATIVES (any one satisfies); different numbers are ALL required
   - Driver HOLDS documents VIA tblDocument (OwnerType='Driver')
-  - Scope lives INSIDE the slot key (capability:client:slot) — a client may only ADD
-  - Reach is a property of WHAT THE BADGE HOLDS, never of its tier
-  - A ROLE requirement is CLIENT-AUTHORED. Unauthored means no demand at all.
-  - A windowed document LAPSES; it is never renewed, and carries no notice
-  - Badges are ATTACHED in [[structure]]; a client may only ALIAS them
-  - TRANSPORT capability POINTS AT an asset category VIA tblCapability.AssetCategoryID -> [[assets]]   # the single touch point
-  - Client requirement rows are VERSIONED-IN [[coordinate-frame]] time (ledger StatusType 712)
+  - Scope lives INSIDE the requirement key (badge:client:number) — a client may only ADD, never relax system law
+  - Reach is two bits on the ROLE badge (Drives, Delivers), never a property of the category
+  - Transport badge PERMITS vehicle categories VIA tblBadgeAssetCategory -> [[assets]]   # the single touch point
+  - Badges are ATTACHED to the work in [[structure]]; a client may only ALIAS them
+  - Client requirement rows are VERSIONED-IN [[coordinate-frame]] time (ledger StatusType 712) and take effect from a future week
+  - The gate PUBLISHES membership rows, never scores; fit is [[labor]]'s preference scale
 
-fill_reality:   # client 7293, week 357, verified 2026-08-23
-  tiers:
-    1: { code: VEHICLE,   capability_word: Endorsement, badge_word: Transport, badges: 8, capabilities: 8 }
-    2: { code: AUTHORITY, capability_word: Authority,   badge_word: Role,      badges: 7, capabilities: 5 }
-    3: { code: DELIVERY,  capability_word: Delivery,    badge_word: Service,   badges: 4, capabilities: 5 }
-  roles: { Driver: [drives, delivers], Helper: [delivers], Walker: [delivers],
-           Backup: [drives, delivers], Supervisor: [supervises, drives, delivers],
-           Trainer: [trains, drives, delivers], Apprentice: [] }
-  slots: 36            # 27 SYSTEM (unsuppressible), 9 CLIENT (additive only)
-  demand_at_seat: 31   # TRANSPORT 21 rows, SERVICE 10, ROLE none — unauthored
-  eligible: 227 of 702
-  gate_rows: 6201
-  drivers: 117
-  driver_documents_held: 638
-  document_types: 23   # 1 windowed
+fill_reality:   # client 7293, week 360, verified 2026-09-15
+  categories:
+    1: { code: VEHICLE,   word: Transport, badges: 8 }
+    2: { code: AUTHORITY, word: Role,      badges: 7 }
+    3: { code: DELIVERY,  word: Service,   badges: 4 }
+  reach: { Driver: [drives, delivers], Backup: [drives, delivers], Supervisor: [drives, delivers],
+           Trainer: [drives, delivers], Helper: [delivers], Walker: [delivers], Apprentice: [] }
+  requirements_system: 35      # over 45 rows; 3 Transport badges (E-bike, Personal Vehicle, Company Vehicle) demand nothing
+  requirements_client_7293: 1  # Step Van Maintenance added under Step Van
+  role_requirements: "every Role badge demands Delivery Orientation; driving roles add Driver Authorization; Supervisor adds Supervisor Training; Trainer adds Trainer Certification; Apprentice demands only Apprentice Enrollment"
+  transport_permits: 8         # tblBadgeAssetCategory rows, one category per badge today
+  demand_at_seat: 42           # fn_SeatDemandedSlots rows
+  eligible_pairs: 840          # fn_LMDPSeatEligible rows, driver x seat
+  drivers_active: 140
+  driver_documents_held: 900
+  document_types: 22           # 19 driver-facing · 3 vehicle-facing
   dormant:
-    - ROLE requirements are unauthored on every client, so no role gate demands anything
-    - Trainer Certification has 0 holders, so a Trainer seat arrives closed until one is issued
+    - Trainer Certification holders decide whether a Trainer seat is open at all; issue one and the seat opens
 
-cite: the tblCapabilityDocument rows behind a requirement + the tblDocument row behind a holding
+cite: the tblBadgeDocument rows behind a requirement + the tblDocument row behind a holding
 intents: []
 ---
 
 ## Meaning
 
 **THE QUESTION.** Eligibility answers one thing: may this person be put in this
-seat. Not how good a fit they are — that is [[preferences]]. Whether they are
-permitted at all.
+seat. Not how good a fit they are — that is [[labor]]'s preference scale.
+Whether they are permitted at all.
 
-**TWO FACES, ONE MEETING POINT.** Demand is what a seat requires; supply is what
-a driver holds; they meet at the **slot**, and the slot — not the document — is
-the unit of match. A slot lists every document that would satisfy it and **any
-one** of them satisfies it, which is how "CDL A *or* CDL B" is said without
-writing an exception. A seat is fillable when no slot is missing.
+**THREE CATEGORIES OF BADGE, ONE TABLE.** Transport, Role and Service. They
+differ by a column value and nothing more. Badges are ours: no door creates one,
+and a client may rename one and change its glyph, which is the whole of their
+authorship. One alias store is read by every surface, so one rename reaches the
+badge list, the mission type's name and the seat label together.
 
-**THE TIER IS DATA.** There is one badge table and one capability table, both
-keyed by `CapabilityGroupID`. The three tiers differ by a column value and
-nothing more. Any code that special-cases a tier is suspect on sight — that is
-what the 2026-08-22 collapse removed, when three display readers and one
-tier-locked write door became one of each.
+**WHERE THE BADGES STAND.** A mission type carries one Transport badge and one
+Service badge, and they are part of its identity. A seat inside it carries one
+Role badge. A person sitting in a mission seat is therefore standing under at
+most three badges. Which of them actually reach the person is the next rule.
 
-**★ THE TIER HAS TWO WORDS, AND THEY ARE NOT INTERCHANGEABLE.** Badges and
-capabilities share the group, so the group has to name both — and it needs a
-different word for each. Group 1 is **Endorsement** as a capability and
-**Transport** as a badge. `Label` is the capability word; `BadgeLabel` is the
-badge word. A screen showing badges takes the badge word, and a lens that picks
-which badges to show is a badge word too. Handing one to a reader asking the
-other question is precisely the mistake a single column used to force.
-
-**REACH, AND WHY A WALKER IS NEVER ASKED FOR A CDL.** Two capabilities — Drive
-and Deliver — decide whether a seat's demand reaches *outward* to the badges the
-mission type carries. A role holding Drive reaches the transport badge; a role
-holding Deliver reaches the service badge. A Walker holds Deliver and not Drive,
-so the service documents compose and the vehicle documents never do. **There is
-no exception written anywhere, because the demand was never composed.** An
-Apprentice holds neither and reaches nothing, which is what makes it a role that
+**REACH, AND WHY A WALKER IS NEVER ASKED FOR A LICENSE.** Every Role badge says
+whether it drives and whether it delivers. A role that drives reaches the
+mission type's Transport badge; a role that delivers reaches its Service badge.
+Driver, Backup, Supervisor and Trainer do both. Helper and Walker deliver and do
+not drive, so the Service documents compose and the Transport documents never
+do. **There is no exception written anywhere, because the demand was never
+composed.** An Apprentice reaches neither, which is what makes it a role that
 carries no responsibility.
 
-**THE CLIENT MAY ADD, NEVER RELAX.** Scope lives *inside* the slot key —
-`capability : client : slot`. A client row reusing slot 1 forms its own slot
-rather than becoming an alternative to the system's slot 1, which would be a
-relaxation wearing an addition's clothes. Twenty-seven system slots are
-unsuppressible; nine client slots sit beside them.
+**THE REQUIREMENT IS A NUMBER.** Each badge demands document types in numbered
+requirements. Two documents sharing a number are alternatives, and **any one**
+satisfies — that is how "CDL A *or* CDL B" is said without writing an
+exception. Different numbers are all required. The count of distinct numbers
+is the count of things a person has to go and get. The number itself is
+internal and never shown; the screen renumbers what it displays.
 
-**AND ROLE REQUIREMENTS ARE THE CLIENT'S TO AUTHOR.** Transport and Service
-requirements are system law. Role requirements are not: every client is expected
-to author its own. This is not an inversion of the rule and not an asymmetry —
-**there is simply no demand authored, and demand is what creates the need for
-supply.** A gate nobody has built is not an open gate; it is not a gate. One
-rule, one justified exception.
+**THE CLIENT MAY ADD, NEVER RELAX.** Scope lives *inside* the requirement key —
+`badge : client : number`. A client row reusing number 1 forms its own
+requirement rather than becoming an alternative to the system's number 1,
+which would be a relaxation wearing an addition's clothes. Thirty-five system
+requirements stand today; a client's additions sit beside them and take effect
+from a future week.
+
+**ROLE REQUIREMENTS ARE SYSTEM LAW TOO.** Every Role badge demands Delivery
+Orientation. The roles that drive add Driver Authorization. Supervisor adds
+Supervisor Training, Trainer adds Trainer Certification, and Apprentice demands
+only its enrollment. Supervise, train and accompany are documents, not a second
+kind of reach.
 
 **SUPPLY HAS NO VERSIONS.** A document is held or it is not: unarchived,
 uncancelled, unexpired at the client's local date. There is nothing to version
 and no lane to read. All the temporal machinery in this concept is on the demand
 side.
 
-**HOW A DOCUMENT ENDS — AND THE DISTINCTION IS RENEWABILITY, NOT DURATION.** Most
-credentials carry a printed date and are **renewed**, so a notice prompts the
-action. A **windowed** document lapses on its own after a length the client picks
-inside the range the system permits, and carries **no notice at all** — because a
-notice prompts a renewal that does not exist, and when it lapses the badge simply
-goes dark. The window is read exactly once, at write time; everything downstream
-reads the materialised expiry date, which is why a lapsing document needs no
-other machinery anywhere.
+**HOW A DOCUMENT ENDS.** A type either expires or it does not. An expiring
+document carries the date printed on it, and whether anyone is warned beforehand
+is the client's policy on that type. When it expires the badge it served goes
+dark until a new one is recorded. See [[documents]].
 
-**BADGES ARE OURS.** There is no client-owned badge and no door that creates one.
-A client may alias the label and the glyph — one store, read by every surface, so
-one rename reaches the badge list, the mission type's name and the seat label
-together — and that is the entire extent of their authorship.
+**THE ONE TOUCH INTO ASSETS.** A Transport badge permits one or more vehicle
+categories through a link table. A badge is an eligibility statement — "may
+operate" — and one badge can cover several vehicles, which is why it is a link
+and not a column.
 
-**THE VERDICT IS MEMBERSHIP.** The gate publishes rows, not scores. Present means
-admitted; absent means not. Nothing on the wire is a verdict except the row
-itself.
+**THE VERDICT IS MEMBERSHIP.** The gate publishes rows, not scores. Present
+means admitted; absent means not. Nothing on the wire is a verdict except the
+row itself. This is the one absolute in the system; everything else about fit
+is a preference on the six-value scale.

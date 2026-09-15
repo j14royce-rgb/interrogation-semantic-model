@@ -22,14 +22,15 @@ Files are numbered by descent order down the spine: `NN-concept.md`.
 |---|------|---------|--------|
 | 01 | coordinate-frame | Client & Time (whose, and when) | done |
 | 02 | actor | Actor & Access Scope (who's asking) | done |
-| 03 | rulebook | Equipment Rulebook (definitional layer) | done |
-| 04 | structure | Work-Definition Shell (op/shift/wave/location) | done |
-| 05 | labor | Team / Driver (the supply side) | done |
-| 06 | assets | Instance Layer (owned, held, conditioned) | done |
+| 03 | eligibility | Badges, requirements, the gate (replaces rulebook) | done — re-cut 2026-09-15 |
+| 04 | structure | Work-Definition Shell (mission type / seat / mission) | done |
+| 05 | labor | Team / Driver (the supply side) | done — re-cut 2026-09-15 |
+| 06 | assets | Instance Layer (owned, held, conditioned) | provisional |
+| 11 | documents | the held proof | done — re-cut 2026-09-15 |
+| 10 | output | derived metrics & recommendations | NEXT |
 | 07 | preparation / execution | the plan vs what happened | pending |
-| 08 | governance | gates, compliance, documents | pending |
 | 09 | ledger | the audit spine + narrative layer | pending |
-| 10 | output | derived metrics & recommendations | pending |
+| 08 | governance | gates, compliance | pending |
 
 Living corpus. Concepts are added and refined continuously; a correction is a text edit that
 takes effect on the next question, no retraining.
