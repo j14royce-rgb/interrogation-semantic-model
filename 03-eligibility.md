@@ -123,6 +123,13 @@ exception. Different numbers are all required. The count of distinct numbers
 is the count of things a person has to go and get. The number itself is
 internal and never shown; the screen renumbers what it displays.
 
+**EVERY BADGE DEMANDS AT LEAST ONE DOCUMENT.** A badge with no requirement
+admits everyone forever, which is exactly the outcome the rule exists to
+prevent. So a badge with nothing under it is a defect, not a permissive badge.
+Three Transport badges stand in that state today (E-bike, Personal Vehicle,
+Company Vehicle); until each carries a document, every driver qualifies for
+them.
+
 **THE CLIENT MAY ADD, NEVER RELAX.** Scope lives *inside* the requirement key —
 `badge : client : number`. A client row reusing number 1 forms its own
 requirement rather than becoming an alternative to the system's number 1,
