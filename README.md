@@ -27,7 +27,7 @@ Files are numbered by descent order down the spine: `NN-concept.md`.
 | 05 | labor | Team / Driver (the supply side) | done — re-cut 2026-09-15 |
 | 06 | assets | Instance Layer (owned, held, conditioned) | provisional |
 | 11 | documents | the held proof | done — re-cut 2026-09-15 |
-| 10 | output | derived metrics & recommendations | NEXT |
+| 10 | output | the live week: scores, hours, budget, Headroom | done — 2026-09-16 |
 | 07 | preparation / execution | the plan vs what happened | pending |
 | 09 | ledger | the audit spine + narrative layer | pending |
 | 08 | governance | gates, compliance | pending |
